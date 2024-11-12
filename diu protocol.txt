@@ -1,0 +1,87 @@
+
+[TOPOLOGY]
+Device: Router0 - Cisco 2911
+Device: Switch0 - Cisco 2960
+Device: Server0 - Generic Server
+Device: PC0 - Generic PC
+Device: PC1 - Generic PC
+Device: PC2 - Generic PC
+Device: Cloud0 - PT Cloud
+
+Connections:
+Cloud0 <-> Router0 (GigabitEthernet0/0)
+Router0 (GigabitEthernet0/1) <-> Switch0 (FastEthernet0/1)
+Switch0 (FastEthernet0/2) <-> Server0
+Switch0 (FastEthernet0/3) <-> PC0
+Switch0 (FastEthernet0/4) <-> PC1
+Switch0 (FastEthernet0/5) <-> PC2
+
+[DEVICE CONFIGURATIONS]
+
+# Router0 Configuration
+enable
+configure terminal
+hostname DIU-ExamFirewall
+enable secret ExamS3cur3P@ss
+
+interface GigabitEthernet0/0
+ description Internet-facing interface
+ ip address dhcp
+ no shutdown
+
+interface GigabitEthernet0/1
+ description Internal network interface
+ ip address 192.168.1.1 255.255.255.0
+ no shutdown
+
+ip dhcp excluded-address 192.168.1.1 192.168.1.10
+ip dhcp pool EXAM_POOL
+ network 192.168.1.0 255.255.255.0
+ default-router 192.168.1.1
+ dns-server 8.8.8.8
+
+ip nat inside source list 1 interface GigabitEthernet0/0 overload
+interface GigabitEthernet0/0
+ ip nat outside
+interface GigabitEthernet0/1
+ ip nat inside
+
+ip access-list extended EXAM_HOURS
+ permit tcp any host 192.168.1.10 eq 80 time-range EXAM_TIME
+ permit tcp any host 192.168.1.10 eq 443 time-range EXAM_TIME
+ deny ip any any log
+
+time-range EXAM_TIME
+ periodic weekdays 9:00 to 17:00
+
+interface GigabitEthernet0/0
+ ip access-group EXAM_HOURS in
+
+logging buffered 16384
+logging console critical
+logging host 192.168.1.10
+
+ntp server 0.pool.ntp.org
+
+ip ips name EXAM_IPS
+ip ips signature-category
+  category all
+   retired true
+  category ios_ips basic
+   retired false
+
+interface GigabitEthernet0/0
+ ip ips EXAM_IPS in
+ ip ips EXAM_IPS out
+
+exit
+copy running-config startup-config
+
+# Server0 Configuration
+IP Address: 192.168.1.10
+Subnet Mask: 255.255.255.0
+Default Gateway: 192.168.1.1
+DNS Server: 8.8.8.8
+
+# PC0, PC1, PC2 Configuration
+IP Configuration: DHCP
